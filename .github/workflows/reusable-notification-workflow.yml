@@ -1,0 +1,68 @@
+name: "Notifications"
+
+on:
+  workflow_call:
+    inputs:
+      job-status:
+        required: true
+        type: string
+      job-name:
+        required: true
+        type: string
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
+
+jobs:
+  send-notification:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    steps:
+    - uses: slackapi/slack-github-action@v1.17.0
+      id: slack
+      with:
+        # For posting a rich message using Block Kit
+        payload: |
+          {
+            "text": "GitHub Action ${{ env.job-name }} result: ${{ env.job-status }} [${{ github.event.repository.name }}]",
+            "attachments": [
+                {
+                    "color": "${{ env.job-status == 'success' && '#2eb886' || '#C41E3A' }}",
+                    "blocks": [
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "Type: *${{ github.event_name }}*\nTitle: *<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|${{ github.event.pull_request.title || github.event.head_commit.message || 'None' }}>*\nBranch: *[${{ github.head_ref || github.ref }}] to [${{ github.base_ref || 'None' }}]*\nRepository: *<${{ github.event.repository.html_url }}|${{ github.repository }}>*\nUser: *${{ github.actor || github.event.pull_request.user.login }}*\n"
+                            }
+                        },
+                        {
+                            "type": "actions",
+                            "elements": [
+                                {
+                                    "type": "button",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "View request or commit"
+                                    },
+                                    "url": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                                },
+                                {
+                                    "type": "button",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "View workflow run"
+                                    },
+                                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+          }
+      env:
+        job-status: ${{ inputs.job-status }}
+        job-name: ${{ inputs.job-name }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
